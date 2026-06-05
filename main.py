@@ -17,9 +17,9 @@ def run_web_server():
     app.run(host="0.0.0.0", port=port)
 
 # تنظیمات
-BOT_TOKEN = os.environ.get("8946030596:AAE5NEZ7vKqeI1TQrcm9lPXx6C0ni3QM59I")
-CHANNEL_ID = os.environ.get("https://t.me/v2ray_free_jasonwolf_shop")
-CONFIG_URL = os.environ.get("https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/All_Configs_Sub.txt")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHANNEL_ID = os.environ.get("CHANNEL_ID")
+CONFIG_URL = os.environ.get("CONFIG_URL")
 
 async def process_data():
     bot = Bot(token=BOT_TOKEN)
