@@ -1,77 +1,79 @@
 import os
-import time
-import random
 import requests
 from flask import Flask
 from threading import Thread
 from telegram import Bot
 import asyncio
+import random
 
-# --- تنظیمات وب‌سرور برای زنده نگه داشتن سرویس ---
+# تنظیمات سرور (برای زنده ماندن در Render)
 app = Flask(__name__)
-
 @app.route("/")
 def home():
-    return "Bot is running perfectly!"
+    return "Bot is active and processing lines!"
 
 def run_web_server():
-    # سرویس‌های رایگان مثل Render نیاز دارند یک پورت باز باشد
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
 
-# --- منطق اصلی ربات ---
+# تنظیمات
+BOT_TOKEN = os.environ.get("8946030596:AAE5NEZ7vKqeI1TQrcm9lPXx6C0ni3QM59I")
+CHANNEL_ID = os.environ.get("https://t.me/v2ray_free_jasonwolf_shop")
+CONFIG_URL = os.environ.get("https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/All_Configs_Sub.txt")
 
-# این مقادیر را از بخش Environment Variables در مرحله بعد می‌گیریم
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = os.environ.get("CHANNEL_ID")
-CONFIG_URL = os.environ.get("CONFIG_URL")
-
-async def send_messages():
+async def process_data():
     bot = Bot(token=BOT_TOKEN)
-    
-    print("Bot started...")
-    
-    while True:
+    print("Starting bot logic...")
+
+    while True: # حلقه اصلی برای بازخوانی کل فایل
         try:
-            print(f"Fetching config from: {CONFIG_URL}")
-            response = requests.get(CONFIG_URL, timeout=20)
+            print(f"Downloading latest config from: {CONFIG_URL}")
+            response = requests.get(CONFIG_URL, timeout=30)
             response.raise_for_status()
-            
-            # جدا کردن خطوط و حذف خطوط خالی
             lines = [line.strip() for line in response.text.splitlines() if line.strip()]
             
-            if not lines:
-                print("Config file is empty. Retrying in 30s...")
-                await asyncio.sleep(30)
-                continue
+            total_lines = len(lines)
+            print(f"Successfully downloaded {total_lines} lines.")
 
-            print(f"Found {len(lines)} lines. Starting to send...")
+            # شروع پردازش از خط 20 (ایندکس 19)
+            # اگر فایل کمتر از 20 خط داشت، از ابتدا شروع کند
+            start_index = 19 if total_lines > 20 else 0
 
-            for line in lines:
-                # --- بخش تغییر متن (قابل شخصی‌سازی) ---
-                # در اینجا ما فقط یک پیشوند اضافه می‌کنیم، شما می‌توانید هر تغییری بدهید
-                modified_text = f"✨ {line} ✨" 
+            for index in range(start_index, total_lines):
+                # شرط توقف پس از 3000 خط (یا پایان فایل)
+                if index >= 3000:
+                    print("Reached 3000 lines. Breaking to re-download...")
+                    break
+
+                line = lines[index]
+                current_line_num = index + 1
                 
-                # ارسال پیام
-                await bot.send_message(chat_id=CHANNEL_ID, text=modified_text)
-                print(f"Sent: {modified_text}")
+                # اعمال منطق تغییر برند
+                if current_line_num > 20 and "#" in line:
+                    prefix = line.split("#")[0].strip()
+                    final_text = f"{prefix} Jasonwolf_shop"
+                else:
+                    final_text = line
 
-                # وقفه تصادفی بین 1 تا 5 ثانیه
-                wait_time = random.uniform(1, 5)
-                await asyncio.sleep(wait_time)
+                # ارسال به تلگرام
+                try:
+                    await bot.send_message(chat_id=CHANNEL_ID, text=final_text)
+                    print(f"Sent line {current_line_num}")
+                except Exception as e:
+                    print(f"Failed to send line {current_line_num}: {e}")
 
-            print("Reached end of file. Restarting loop...")
+                # وقفه تصادفی برای جلوگیری از محدودیت تلگرام
+                await asyncio.sleep(random.uniform(2, 4))
+
+            print("Cycle completed or 3000 lines reached. Restarting cycle in 60s...")
+            await asyncio.sleep(60)
 
         except Exception as e:
-            print(f"Error occurred: {e}")
-            print("Retrying in 30 seconds...")
-            await asyncio.sleep(30)
+            print(f"Error in main loop: {e}")
+            await asyncio.sleep(60)
 
 if __name__ == "__main__":
-    # اجرای وب‌سرور در یک Thread جداگانه
     t = Thread(target=run_web_server)
     t.daemon = True
     t.start()
-
-    # اجرای حلقه اصلی ربات با asyncio
-    asyncio.run(send_messages())
+    asyncio.run(process_data())
